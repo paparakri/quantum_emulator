@@ -2,6 +2,7 @@ import numpy as np
 from quantum_emulator.gates import *
 
 class Qubit:
+	G_rng = np.random.default_rng(None)
 
 	def __init__(self, init_val):
 		if type(init_val) != int and not isinstance(init_val, np.ndarray):
@@ -27,6 +28,23 @@ class Qubit:
 
 	def probabilities(self):
 		return np.abs(self.qarray) ** 2
+
+	def sample(self, shots=1000, rng = G_rng):
+		if not isinstance(shots, int) or shots<=0:
+			raise ValueError("shots must be a positive integer")
+		probs = self.probabilities()
+		u = rng.random(shots)
+		zeros = np.count_nonzero(u < probs[0])
+		return {"0": int(zeros), "1": int(shots-zeros)}
+
+	def measure(self, rng = G_rng):
+		probs = self.probabilities()
+		if rng.random() < probs[0]:
+			self.qarray = np.array([1,0], dtype=np.complex128)
+			return 0
+		else:
+			self.qarray = np.array([0,1], dtype=np.complex128)
+			return 1
 
 PLUS = (np.array([1,1], dtype=np.complex128)/np.sqrt(2))
 PLUS.flags.writeable = False
