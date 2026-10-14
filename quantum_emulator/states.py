@@ -46,6 +46,38 @@ class Qubit:
 			self.qarray = np.array([0,1], dtype=np.complex128)
 			return 1
 
+class QuantumState:
+
+	def __init__(self, array):
+		if isinstance(array, str):
+			if len(array) == 0:
+				raise ValueError("Bitstring must not be empty")
+			if not set(array) <= {"0", "1"}:
+				raise ValueError(f"Bitstring may only contain '0' and '1', got '{array}'")
+
+			self.num_qubits = len(array)
+			state = np.zeros(2 ** self.num_qubits, dtype=np.complex128)
+			state[int(array, 2)] = 1.0
+			self.qarray = state
+
+		elif isinstance(array, (np.ndarray, list, tuple)):
+			state = np.array(array, dtype=np.complex128)
+			if state.ndim != 1 or state.size < 2:
+				raise ValueError(f"State must be a 1D array of length >= 2, got shape {state.shape}")
+			length = state.size
+			if length & (length - 1) != 0:
+				raise ValueError(f"State length must be a power of 2, got {length}")
+			if not np.isclose(np.linalg.norm(state), 1.0):
+				raise ValueError(f"State must be normalized, got norm {np.linalg.norm(state)}")
+
+			self.num_qubits = length.bit_length() - 1
+			self.qarray = state
+		else:
+			raise TypeError(f"Expected a bitstring or array, got {type(array).__name__}")
+
+	def probabilities(self):
+		return np.abs(self.qarray) ** 2
+
 PLUS = (np.array([1,1], dtype=np.complex128)/np.sqrt(2))
 PLUS.flags.writeable = False
 MINUS = (np.array([1,-1], dtype=np.complex128)/np.sqrt(2))
