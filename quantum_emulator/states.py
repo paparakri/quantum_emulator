@@ -1,5 +1,6 @@
 import numpy as np
 from quantum_emulator.gates import *
+from functools import reduce
 
 class Qubit:
 	G_rng = np.random.default_rng(None)
@@ -77,6 +78,20 @@ class QuantumState:
 
 	def probabilities(self):
 		return np.abs(self.qarray) ** 2
+
+	def apply(self, gate, target):
+		if not isinstance(target, (int, np.integer)) or isinstance(target, bool):
+			raise ValueError("target must be an integer")
+		if not isinstance(gate, Gate):
+			raise TypeError("gate is not of type Gate")
+		if gate.num_qubits != 1:
+			raise ValueError("Multi-Qubit gates not ready")
+		if not 0 <= target < self.num_qubits:
+			raise ValueError("target index not in correct range")
+		temp_array = [np.eye(2, dtype=np.complex128)] * self.num_qubits
+		temp_array[target] = gate.matrix
+		gate_array = reduce(np.kron, temp_array)
+		self.qarray = gate_array @ self.qarray
 
 PLUS = (np.array([1,1], dtype=np.complex128)/np.sqrt(2))
 PLUS.flags.writeable = False
