@@ -2,6 +2,7 @@ import numpy as np
 from quantum_emulator.gates import *
 
 class Qubit:
+
 	def __init__(self, init_val):
 		if type(init_val) != int and not isinstance(init_val, np.ndarray):
 			raise ValueError("Init Val not an int or np.array")
@@ -24,6 +25,8 @@ class Qubit:
 			raise TypeError("Didn't pass a gate")
 		self.qarray = gate.matrix@self.qarray
 
+	def probabilities(self):
+		return np.abs(self.qarray) ** 2
 
 PLUS = (np.array([1,1], dtype=np.complex128)/np.sqrt(2))
 PLUS.flags.writeable = False

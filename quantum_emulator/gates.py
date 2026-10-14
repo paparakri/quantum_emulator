@@ -1,15 +1,20 @@
 import numpy as np
 
+def is_unitary(matrix: np.ndarray, atol: float = 1e-10) -> bool:
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        return False
+    identity = np.eye(matrix.shape[0])
+    return np.allclose(matrix.conj().T @ matrix, identity, rtol=0, atol=atol)
 
 class Gate:
-    """Base class for all gates. Subclasses only define `name` and `matrix`."""
-
     name: str
     matrix: np.ndarray
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.matrix.flags.writeable = False
+        if not is_unitary(cls.matrix):
+            raise ValueError(f"The gate {cls.name} is not unitary")
 
     @property
     def num_qubits(self) -> int:
