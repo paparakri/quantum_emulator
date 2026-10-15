@@ -48,6 +48,7 @@ class Qubit:
 			return 1
 
 class QuantumState:
+	G_rng = np.random.default_rng(None)
 
 	def __init__(self, array):
 		if isinstance(array, str):
@@ -93,7 +94,63 @@ class QuantumState:
 		gate_array = reduce(np.kron, temp_array)
 		self.qarray = gate_array @ self.qarray
 
+	def cnot(self, control, target):
+		self.apply_controlled(X(), control, target)
+
+	def apply_controlled(self, gate, control, target):
+		if not isinstance(gate, Gate):
+			raise TypeError("gate is not of type Gate")
+		if gate.num_qubits != 1:
+			raise ValueError("gate is not a 1-qubit Gate")
+		if control == target:
+			raise ValueError("control is equal to target")
+		if not isinstance(target, (int, np.integer)) or isinstance(target, bool):
+			raise ValueError("target must be an integer")
+		if not 0 <= target < self.num_qubits:
+			raise ValueError("target index not in correct range")
+		if not isinstance(control, (int, np.integer)) or isinstance(control, bool):
+			raise ValueError("control must be an integer")
+		if not 0 <= control < self.num_qubits:
+			raise ValueError("control index not in correct range")
+		
+		factors_a = [np.eye(2, dtype=np.complex128)] * self.num_qubits
+		factors_a[control] = P0
+		term_a = reduce(np.kron, factors_a)
+
+		factors_b = [np.eye(2, dtype=np.complex128)] * self.num_qubits
+		factors_b[control] = P1
+		factors_b[target] = gate.matrix
+		term_b = reduce(np.kron, factors_b)
+
+		self.qarray = (term_a + term_b) @ self.qarray
+
+	def measure(self, rng = G_rng):
+		probs = self.probabilities()
+		choice = rng.choice(2**self.num_qubits, p=probs)
+		self.qarray.fill(0)
+		self.qarray[choice] = 1
+		return self._to_bitstring(choice)
+
+	def sample(self, shots, rng=G_rng):
+		if not isinstance(shots, (int, np.integer)) or isinstance(shots, bool) or shots<=0:
+			raise ValueError("shots must be a positive integer")
+		probs = self.probabilities()
+		u = rng.multinomial(shots, probs)
+		return {
+			self._to_bitstring(i): int(c)
+			for i, c in enumerate(u)
+			if c > 0
+		}
+
+	def _to_bitstring(self, index):
+		return format(index, f"0{self.num_qubits}b")
+
 PLUS = (np.array([1,1], dtype=np.complex128)/np.sqrt(2))
 PLUS.flags.writeable = False
 MINUS = (np.array([1,-1], dtype=np.complex128)/np.sqrt(2))
 MINUS.flags.writeable = False
+
+P0 = np.array([[1, 0], [0, 0]], dtype=np.complex128)
+P1 = np.array([[0, 0], [0, 1]], dtype=np.complex128)
+P0.flags.writeable = False
+P1.flags.writeable = False

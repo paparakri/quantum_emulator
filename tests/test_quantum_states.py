@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from quantum_emulator.states import QuantumState
-from quantum_emulator.gates import Gate, X, H
+from quantum_emulator.gates import Gate, X as XGate, H as HGate, Z as ZGate
 
 @pytest.mark.parametrize("state, expected, num", [
     ("0", [1,0], 1),
@@ -67,8 +67,9 @@ class _NonSymmetricGate(Gate):
     # Real orthogonal (3-4-5 rotation) and NOT symmetric: G.T != G
     matrix = np.array([[0.6, -0.8], [0.8, 0.6]], dtype=np.complex128)
 
-X = X()
-H = H()
+X = XGate()
+H = HGate()
+Z = ZGate()
 NonSymmetric = _NonSymmetricGate()
 
 @pytest.mark.parametrize("target, expected", [
@@ -135,3 +136,68 @@ def test_bad_target_raises_value_error(bad_target):
     state = QuantumState("00")  # valid targets: 0 and 1
     with pytest.raises(ValueError):
         state.apply(X, bad_target)
+
+@pytest.mark.parametrize("bits, expected1, expected2", [
+        ("00", [1,0,0,0], [1,0,0,0]),
+        ("01", [0,1,0,0], [0,0,0,1]),
+        ("10", [0,0,0,1], [0,0,1,0]),
+        ("11", [0,0,1,0], [0,1,0,0])
+    ])
+def test_controlled_gate(bits, expected1, expected2):
+    state = QuantumState(bits)
+    state2 = QuantumState(bits)
+    state.cnot(0,1)
+    state2.cnot(1,0)
+    np.testing.assert_allclose(state.qarray,expected1)
+    np.testing.assert_allclose(state2.qarray,expected2)
+
+def test_bell_state():
+    q = QuantumState("00")
+    q.apply(H, 0)
+    q.cnot(0,1)
+    np.testing.assert_allclose(q.qarray, [1,0,0,1]/np.sqrt(2))
+
+@pytest.mark.parametrize("bits, control, target, expected", [
+        ("100", 0, 2, [0,0,0,0,0,1,0,0]),
+        ("001", 2, 0, [0,0,0,0,0,1,0,0]),
+        ("010", 0, 2, [0,0,1,0,0,0,0,0]),
+    ])
+def test_cnot_three_qubits(bits, control, target, expected):
+    state = QuantumState(bits)
+    state.cnot(control, target)
+    np.testing.assert_allclose(state.qarray, expected)
+
+
+@pytest.mark.parametrize("bits, expected", [
+        ("00", [1,0,0,0]),
+        ("01", [0,1,0,0]),
+        ("10", [0,0,1,0]),
+        ("11", [0,0,0,-1]),
+    ])
+def test_controlled_Z(bits, expected):
+    state = QuantumState(bits)
+    state.apply_controlled(Z, 0, 1)
+    np.testing.assert_allclose(state.qarray, expected)
+
+@pytest.mark.parametrize("bad_control, bad_target", [(0,0),(0,2),(-1,1),(0,1.5)])
+def test_bad_values_cnot(bad_control, bad_target):
+    q = QuantumState("10")
+    with pytest.raises(ValueError):
+        q.cnot(bad_control, bad_target)
+
+def test_bad_values_controlled():
+    q = QuantumState("10")
+    with pytest.raises(TypeError):
+        q.apply_controlled("X", 0, 1)
+
+@pytest.mark.parametrize("bits", ["00","01","10","11"])
+def test_hadamard_sandwich(bits):
+    q1 = QuantumState(bits)
+    q2 = QuantumState(bits)
+    q1.apply(H, 0)
+    q1.apply(H, 1)
+    q1.cnot(0,1)
+    q1.apply(H, 1)
+    q1.apply(H, 0)
+    q2.cnot(1,0)
+    np.testing.assert_allclose(q1.qarray, q2.qarray, atol=1e-12)
