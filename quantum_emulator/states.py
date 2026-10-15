@@ -102,8 +102,6 @@ class QuantumState:
 			raise TypeError("gate is not of type Gate")
 		if gate.num_qubits != 1:
 			raise ValueError("gate is not a 1-qubit Gate")
-		if control == target:
-			raise ValueError("control is equal to target")
 		if not isinstance(target, (int, np.integer)) or isinstance(target, bool):
 			raise ValueError("target must be an integer")
 		if not 0 <= target < self.num_qubits:
@@ -112,7 +110,9 @@ class QuantumState:
 			raise ValueError("control must be an integer")
 		if not 0 <= control < self.num_qubits:
 			raise ValueError("control index not in correct range")
-		
+		if control == target:
+			raise ValueError("control is equal to target")
+
 		factors_a = [np.eye(2, dtype=np.complex128)] * self.num_qubits
 		factors_a[control] = P0
 		term_a = reduce(np.kron, factors_a)

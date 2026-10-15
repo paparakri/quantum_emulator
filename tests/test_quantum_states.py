@@ -201,3 +201,90 @@ def test_hadamard_sandwich(bits):
     q1.apply(H, 0)
     q2.cnot(1,0)
     np.testing.assert_allclose(q1.qarray, q2.qarray, atol=1e-12)
+
+@pytest.mark.parametrize("bits, expected", [("000",{"000":1000}),("001",{"001":1000}),("101",{"101":1000}),("111",{"111":1000}),])
+def test_basic_sample(bits, expected):
+    q = QuantumState(bits)
+    assert (q.sample(1000) == expected)
+
+@pytest.mark.parametrize("bits", ["000","001","010","100"])
+def test_basic_measure(bits):
+    q = QuantumState(bits)
+    assert q.measure() == bits
+    np.testing.assert_allclose(q.qarray, QuantumState(bits).qarray)
+
+def test_sample_counts_sum_to_shots():
+    q = QuantumState("000")
+    q.apply(H, 0)
+    q.apply(H, 1)
+    q.apply(H, 2)
+    counts = q.sample(1234)
+    assert sum(counts.values()) == 1234
+    assert all(len(k) == 3 for k in counts)
+
+def test_sample_does_not_change_state():
+    q = QuantumState("000")
+    q.apply(H, 0)
+    q.apply(H, 1)
+    q.apply(H, 2)
+    q_copy = q.qarray.copy()
+    q.sample(1000)
+    np.testing.assert_allclose(q.qarray, q_copy)
+
+def test_sample_same_seed():
+    q1 = QuantumState("000")
+    q2 = QuantumState("000")
+    q1.apply(H,0)
+    q1.apply(H,2)
+    q2.apply(H,0)
+    q2.apply(H,2)
+    assert (q1.sample(500, rng=np.random.default_rng(10)) == q2.sample(500, rng=np.random.default_rng(10)))
+
+def test_measure_collapses_to_outcome():
+    q = QuantumState("101")
+    q.apply(H,0)
+    q.apply(H,1)
+    b = q.measure()
+    np.testing.assert_allclose(q.qarray, np.eye(2**q.num_qubits)[int(b,2)])
+
+def test_measure_twice_same():
+    q = QuantumState("101")
+    q.apply(H,0)
+    q.apply(H,1)
+    b = q.measure()
+    assert q.measure() == b
+
+def test_bell_sample():
+    q = QuantumState("00")
+    q.apply(H, 0)
+    q.cnot(0,1)
+    b = q.sample(10000, rng=np.random.default_rng(10))
+    assert b.keys() == {"00", "11"}
+    assert 4850 < b["00"] < 5150
+
+def test_bell_measure_correlated():
+    for _ in range(100):
+        q = QuantumState("00")
+        q.apply(H, 0)
+        q.cnot(0,1)
+        assert q.measure() in {"00", "11"}
+
+def test_uniform_three_qubit():
+    q = QuantumState("101")
+    q.apply(H,0)
+    q.apply(H,1)
+    q.apply(H,2)
+    b = q.sample(8000, rng=np.random.default_rng(10))
+    assert len(b.keys()) == 8
+    for val in b.values():
+        assert 900 < val < 1100
+
+@pytest.mark.parametrize("bad_shots", [0, -5, 2.5, True, "100", None])
+def test_sample_rejects_invalid_shots(bad_shots):
+    q = QuantumState("00")
+    with pytest.raises(ValueError):
+        q.sample(bad_shots)
+
+def test_sample_accepts_numpy_int_shots():
+    q = QuantumState("00")
+    assert q.sample(np.int64(100)) == {"00": 100}
