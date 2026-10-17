@@ -1,51 +1,6 @@
 import numpy as np
-from quantum_emulator.gates import *
+from quantum_emulator.gates import Gate, X
 from functools import reduce
-
-class Qubit:
-	G_rng = np.random.default_rng(None)
-
-	def __init__(self, init_val):
-		if type(init_val) != int and not isinstance(init_val, np.ndarray):
-			raise ValueError("Init Val not an int or np.array")
-		elif isinstance(init_val, np.ndarray):
-			state = np.array(init_val, dtype=np.complex128)
-			if state.shape != (2,):
-				raise ValueError(f"State must have shape (2,), got {state.shape}")
-			if not np.isclose(np.linalg.norm(state), 1.0):
-				raise ValueError(f"State must be normalized, got norm {np.linalg.norm(state)}")
-			self.qarray = state
-		elif init_val==0:
-			self.qarray = np.array([1,0], dtype=np.complex128)
-		elif init_val==1:
-			self.qarray = np.array([0,1], dtype=np.complex128)
-		else:
-			raise ValueError("Int not 0 or 1")
-
-	def apply(self, gate:Gate):
-		if not isinstance(gate, Gate):
-			raise TypeError("Didn't pass a gate")
-		self.qarray = gate.matrix@self.qarray
-
-	def probabilities(self):
-		return np.abs(self.qarray) ** 2
-
-	def sample(self, shots=1000, rng = G_rng):
-		if not isinstance(shots, int) or shots<=0:
-			raise ValueError("shots must be a positive integer")
-		probs = self.probabilities()
-		u = rng.random(shots)
-		zeros = np.count_nonzero(u < probs[0])
-		return {"0": int(zeros), "1": int(shots-zeros)}
-
-	def measure(self, rng = G_rng):
-		probs = self.probabilities()
-		if rng.random() < probs[0]:
-			self.qarray = np.array([1,0], dtype=np.complex128)
-			return 0
-		else:
-			self.qarray = np.array([0,1], dtype=np.complex128)
-			return 1
 
 class QuantumState:
 	G_rng = np.random.default_rng(None)
@@ -81,14 +36,11 @@ class QuantumState:
 		return np.abs(self.qarray) ** 2
 
 	def apply(self, gate, target):
-		if not isinstance(target, (int, np.integer)) or isinstance(target, bool):
-			raise ValueError("target must be an integer")
 		if not isinstance(gate, Gate):
 			raise TypeError("gate is not of type Gate")
 		if gate.num_qubits != 1:
 			raise ValueError("Multi-Qubit gates not ready")
-		if not 0 <= target < self.num_qubits:
-			raise ValueError("target index not in correct range")
+		self._check_qubit_index(target, "target")
 		temp_array = [np.eye(2, dtype=np.complex128)] * self.num_qubits
 		temp_array[target] = gate.matrix
 		gate_array = reduce(np.kron, temp_array)
@@ -102,14 +54,8 @@ class QuantumState:
 			raise TypeError("gate is not of type Gate")
 		if gate.num_qubits != 1:
 			raise ValueError("gate is not a 1-qubit Gate")
-		if not isinstance(target, (int, np.integer)) or isinstance(target, bool):
-			raise ValueError("target must be an integer")
-		if not 0 <= target < self.num_qubits:
-			raise ValueError("target index not in correct range")
-		if not isinstance(control, (int, np.integer)) or isinstance(control, bool):
-			raise ValueError("control must be an integer")
-		if not 0 <= control < self.num_qubits:
-			raise ValueError("control index not in correct range")
+		self._check_qubit_index(target, "target")
+		self._check_qubit_index(control, "control")
 		if control == target:
 			raise ValueError("control is equal to target")
 
@@ -141,6 +87,12 @@ class QuantumState:
 			for i, c in enumerate(u)
 			if c > 0
 		}
+
+	def _check_qubit_index(self, index, name):
+		if not isinstance(index, (int, np.integer)) or isinstance(index, bool):
+			raise ValueError(f"{name} must be an integer")
+		if not 0 <= index < self.num_qubits:
+			raise ValueError(f"{name} index not in correct range")
 
 	def _to_bitstring(self, index):
 		return format(index, f"0{self.num_qubits}b")

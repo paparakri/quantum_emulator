@@ -143,7 +143,7 @@ def test_bad_target_raises_value_error(bad_target):
         ("10", [0,0,0,1], [0,0,1,0]),
         ("11", [0,0,1,0], [0,1,0,0])
     ])
-def test_controlled_gate(bits, expected1, expected2):
+def test_cnot_truth_tables(bits, expected1, expected2):
     state = QuantumState(bits)
     state2 = QuantumState(bits)
     state.cnot(0,1)

@@ -1,25 +1,25 @@
 import numpy as np
 import pytest
 
-from quantum_emulator.states import Qubit, PLUS, MINUS
-from quantum_emulator.gates import *
+from quantum_emulator.states import QuantumState, PLUS, MINUS
+from quantum_emulator.gates import Gate, X, Z, H, is_unitary
 
-@pytest.mark.parametrize("init_val, result", [(0, [0, 1]), (1, [1, 0]),])
-def test_basis_state_X_gate(init_val, result):
-    q1 = Qubit(init_val)
-    q1.apply(X())
+@pytest.mark.parametrize("bits, result", [("0", [0, 1]), ("1", [1, 0]),])
+def test_basis_state_X_gate(bits, result):
+    q1 = QuantumState(bits)
+    q1.apply(X(), 0)
     np.testing.assert_allclose(q1.qarray, result)
 
 @pytest.mark.parametrize("init_val, result", [(PLUS,MINUS), (MINUS,PLUS)])
 def test_basis_state_Z_gate(init_val, result):
-    q1 = Qubit(init_val)
-    q1.apply(Z())
+    q1 = QuantumState(init_val)
+    q1.apply(Z(), 0)
     np.testing.assert_allclose(q1.qarray, result)
 
-@pytest.mark.parametrize("init_val, result", [(0,PLUS), (1,MINUS)])
-def test_basis_state_H_gate(init_val, result):
-    q1 = Qubit(init_val)
-    q1.apply(H())
+@pytest.mark.parametrize("bits, result", [("0",PLUS), ("1",MINUS)])
+def test_basis_state_H_gate(bits, result):
+    q1 = QuantumState(bits)
+    q1.apply(H(), 0)
     np.testing.assert_allclose(q1.qarray, result)
 
 class NonSymmetric(Gate):
@@ -30,15 +30,15 @@ class NonSymmetric(Gate):
 
 def test_apply_multiplies_matrix_on_the_left():
     # M|0> is the first column of M: [0, -1]. The wrong order would give the first row: [0, 1].
-    q = Qubit(0)
-    q.apply(NonSymmetric())
+    q = QuantumState("0")
+    q.apply(NonSymmetric(), 0)
     np.testing.assert_allclose(q.qarray, [0, -1])
 
 
-@pytest.mark.parametrize("init_val, result", [(0, [1, 0]), (1, [0, -1])])
-def test_z_gate_on_computational_basis(init_val, result):
-    q = Qubit(init_val)
-    q.apply(Z())
+@pytest.mark.parametrize("bits, result", [("0", [1, 0]), ("1", [0, -1])])
+def test_z_gate_on_computational_basis(bits, result):
+    q = QuantumState(bits)
+    q.apply(Z(), 0)
     np.testing.assert_allclose(q.qarray, result)
 
 
@@ -71,20 +71,15 @@ def test_hzh_equals_x():
     np.testing.assert_allclose(H().matrix @ Z().matrix @ H().matrix, X().matrix, atol=1e-12)
 
 
-def test_apply_rejects_non_gate():
-    q = Qubit(0)
-    with pytest.raises(TypeError):
-        q.apply("X")
-
 @pytest.mark.parametrize("init_val, result", [
-        (0, np.array([1,0], dtype=np.float64)),
-        (1, np.array([0,1], dtype=np.float64)),
+        ("0", np.array([1,0], dtype=np.float64)),
+        ("1", np.array([0,1], dtype=np.float64)),
         (PLUS, np.array([0.5,0.5], dtype=np.float64)),
         (MINUS, np.array([0.5,0.5], dtype=np.float64)),
         (np.array([1,1j])/np.sqrt(2), np.array([0.5,0.5], dtype=np.float64)),
     ])
 def test_probabilities(init_val, result):
-    q1 = Qubit(init_val)
+    q1 = QuantumState(init_val)
     probabilities = q1.probabilities()
     assert probabilities.shape == (2,)
     assert probabilities.dtype == np.float64
@@ -93,7 +88,7 @@ def test_probabilities(init_val, result):
     np.testing.assert_allclose(probabilities, result)
 
 def test_Z_probabilities():
-    q1=Qubit(PLUS)
-    q2=Qubit(PLUS)
-    q2.apply(Z())
+    q1=QuantumState(PLUS)
+    q2=QuantumState(PLUS)
+    q2.apply(Z(), 0)
     np.testing.assert_allclose(q1.probabilities(), q2.probabilities())

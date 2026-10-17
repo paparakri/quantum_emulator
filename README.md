@@ -3,6 +3,7 @@
 A state-vector quantum circuit simulator built from scratch in Python/NumPy.
 
 ## Roadmap
+
 1. One qubit: states, X/H/Z gates, Born-rule measurement
 2. Many qubits: tensor products, CNOT, Bell states
 3. Circuit API + Deutsch–Jozsa and Grover
